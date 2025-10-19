@@ -1,0 +1,98 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    uid: prometheus
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: 15s
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    uid: tempo
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+        filterByTraceID: true
+        filterBySpanID: false
+      tracesToMetrics:
+        datasourceUid: prometheus
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      lokiSearch:
+        datasourceUid: loki
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    uid: loki
+    editable: true
+    jsonData:
+      derivedFields:
+        - datasourceUid: tempo
+          matcherRegex: "trace_id=(\\w+)"
+          name: TraceID
+          url: '$${__value.raw}'
+      # Predefined queries that appear in Explore
+      predefinedQueries:
+        - name: All logs from main-service
+          expr: '{service="main-service"}'
+        - name: All logs from payments-service
+          expr: '{service="payments-service"}'
+        - name: All logs from promotions-service
+          expr: '{service="promotions-service"}'
+        - name: All logs from inventory-system
+          expr: '{service="inventory-system"}'
+        - name: All logs from crm-system
+          expr: '{service="crm-system"}'
+        - name: All logs from payment-provider
+          expr: '{service="payment-provider"}'
+        - name: Error logs (all services)
+          expr: '{job=~".+"} | json | level=~"error|ERROR"'
+        - name: Warning logs (all services)
+          expr: '{job=~".+"} | json | level=~"warn|warning|WARN|WARNING"'
+        - name: Logs with trace context
+          expr: '{job=~".+"} | json | trace_id!=""'
+        - name: Payment processing logs
+          expr: '{service=~"payments-service|payment-provider"} | json | msg=~".*[Pp]ayment.*"'
+        - name: Order processing logs
+          expr: '{service="main-service"} | json | msg=~".*order.*"'
+        - name: Slow queries and operations
+          expr: '{job=~".+"} | json | msg=~".*[Ss]low.*"'
+        - name: Search by trace ID (edit the trace_id value)
+          expr: '{job=~".+"} | json | trace_id="your-trace-id-here"'
+        - name: Recent requests with full context
+          expr: '{job=~".+"} | json | trace_id!="" and span_id!=""'
+
+  - name: Pyroscope
+    type: grafana-pyroscope-datasource
+    access: proxy
+    url: http://pyroscope:4040
+    uid: pyroscope
+    editable: true
+
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    uid: alertmanager
+    editable: true
+    jsonData:
+      implementation: prometheus

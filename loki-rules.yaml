@@ -1,0 +1,102 @@
+groups:
+  - name: log_metrics
+    interval: 30s
+    rules:
+      # Record error log rates by service
+      - record: log:errors:rate5m
+        expr: |
+          sum by (service) (
+            rate({job=~".+"} | json | level=~"ERROR|error|Error" [5m])
+          )
+
+      # Record warning log rates by service
+      - record: log:warnings:rate5m
+        expr: |
+          sum by (service) (
+            rate({job=~".+"} | json | level=~"WARN|WARNING|warn|warning|Warn|Warning" [5m])
+          )
+
+      # Record fatal/critical log rates by service
+      - record: log:fatal:rate5m
+        expr: |
+          sum by (service) (
+            rate({job=~".+"} | json | level=~"FATAL|CRITICAL|fatal|critical|Fatal|Critical" [5m])
+          )
+
+      # Record total log rate by service
+      - record: log:total:rate5m
+        expr: |
+          sum by (service) (
+            rate({job=~".+"} | json [5m])
+          )
+
+      # Record error ratio by service (errors / total logs)
+      - record: log:error_ratio:rate5m
+        expr: |
+          sum by (service) (rate({job=~".+"} | json | level=~"ERROR|error|Error" [5m]))
+          /
+          sum by (service) (rate({job=~".+"} | json [5m]))
+
+  - name: log_alerts
+    interval: 30s
+    rules:
+      # High error log rate
+      - alert: HighErrorLogRate
+        expr: log:errors:rate5m > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High error log rate in {{ $labels.service }}"
+          description: "Service {{ $labels.service }} is logging {{ $value | humanize }} errors per second (threshold: 1/s)"
+
+      # Critical: Fatal errors detected
+      - alert: FatalErrorsDetected
+        expr: log:fatal:rate5m > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Fatal errors detected in {{ $labels.service }}"
+          description: "Service {{ $labels.service }} has logged fatal/critical errors: {{ $value | humanize }} per second"
+          runbook: "Immediately check service logs and investigate root cause"
+
+      # High error ratio (> 5% of all logs are errors)
+      - alert: HighErrorLogRatio
+        expr: log:error_ratio:rate5m > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High error log ratio in {{ $labels.service }}"
+          description: "{{ $labels.service }} error ratio is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      # Service logging stopped (could indicate a problem)
+      - alert: ServiceNotLogging
+        expr: log:total:rate5m == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Service {{ $labels.service }} stopped logging"
+          description: "No logs received from {{ $labels.service }} in the last 5 minutes"
+
+      # Sudden spike in log volume (could indicate a problem loop)
+      - alert: LogVolumeSpikeDetected
+        expr: |
+          (
+            log:total:rate5m
+            /
+            (avg_over_time(log:total:rate5m[1h]) + 1)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Log volume spike in {{ $labels.service }}"
+          description: "{{ $labels.service }} log rate is {{ $value }}x higher than average"

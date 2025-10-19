@@ -1,0 +1,257 @@
+monitoring-example/
+│
+├── Configuration Files
+│   ├── docker-compose.yml              ✅ Main orchestration (14 services)
+│   ├── otel-collector-config.yaml     ✅ OpenTelemetry Collector config
+│   ├── prometheus.yml                  ✅ Prometheus scrape config
+│   ├── tempo.yaml                      ✅ Tempo tracing config
+│   ├── loki.yaml                       ✅ Loki log aggregation config
+│   ├── .env.example                    ✅ Environment variables template
+│   └── .gitignore                      ✅ Git ignore rules
+│
+├── Documentation
+│   ├── README.md                       ✅ Main documentation (comprehensive)
+│   ├── QUICKSTART.md                   ✅ 5-minute getting started guide
+│   ├── ARCHITECTURE.md                 ✅ Detailed architecture (300+ lines)
+│   ├── PROJECT_SUMMARY.md              ✅ Complete feature overview
+│   └── FILE_STRUCTURE.txt              ✅ This file
+│
+├── Build & Deploy Scripts
+│   ├── Makefile                        ✅ Convenience commands
+│   ├── start.sh                        ✅ Quick start script
+│   └── scripts/
+│       ├── generate-traffic.py         ✅ Python traffic generator
+│       └── generate-traffic.sh         ✅ Shell traffic generator wrapper
+│
+├── Frontend (React SPA)
+│   └── frontend/
+│       ├── Dockerfile                  ✅ Multi-stage build
+│       ├── nginx.conf                  ✅ Nginx configuration
+│       ├── package.json                ✅ Dependencies
+│       ├── public/
+│       │   └── index.html              ✅ HTML template
+│       └── src/
+│           ├── index.js                ✅ App entry point
+│           ├── index.css               ✅ Global styles
+│           ├── App.js                  ✅ Main component
+│           ├── App.css                 ✅ App styles
+│           └── monitoring.js           ✅ Grafana Faro setup
+│
+├── Backend Services
+│   └── services/
+│       │
+│       ├── main-service/ (FastAPI - Python)
+│       │   ├── Dockerfile              ✅ Python 3.11 image
+│       │   ├── requirements.txt        ✅ Python dependencies
+│       │   └── main.py                 ✅ FastAPI app (500+ lines)
+│       │       • Products management
+│       │       • Shopping cart
+│       │       • Checkout flow
+│       │       • Order management
+│       │       • PostgreSQL integration
+│       │       • Redis caching
+│       │       • OpenTelemetry auto-instrumentation
+│       │       • Prometheus metrics
+│       │       • Pyroscope profiling
+│       │
+│       ├── payments-service/ (Go)
+│       │   ├── Dockerfile              ✅ Multi-stage Go build
+│       │   ├── go.mod                  ✅ Go module definition
+│       │   ├── go.sum                  ✅ Go dependencies
+│       │   └── main.go                 ✅ Gin app (300+ lines)
+│       │       • Payment processing
+│       │       • External provider calls
+│       │       • Country-specific metrics
+│       │       • OpenTelemetry instrumentation
+│       │       • Prometheus metrics
+│       │
+│       ├── promotions-service/ (C# .NET)
+│       │   ├── Dockerfile              ✅ .NET 8 multi-stage
+│       │   ├── PromotionsService.csproj ✅ Project file
+│       │   ├── Program.cs              ✅ ASP.NET Core setup
+│       │   └── Controllers/
+│       │       └── PromotionsController.cs ✅ API controller
+│       │           • Promotion checking
+│       │           • Discount calculation
+│       │           • External API integration
+│       │           • OpenTelemetry instrumentation
+│       │
+│       └── external/ (Node.js - External Services)
+│           │
+│           ├── payment-provider/
+│           │   ├── Dockerfile          ✅ Node.js 20
+│           │   ├── package.json        ✅ Dependencies
+│           │   └── index.js            ✅ Express app
+│           │       • Simulated payment gateway
+│           │       • Country-specific failure rates
+│           │       • Random error responses (400, 404, 500, 503, 429)
+│           │       • OpenTelemetry auto-instrumentation
+│           │
+│           ├── crm-system/
+│           │   ├── Dockerfile          ✅ Node.js 20
+│           │   ├── package.json        ✅ Dependencies
+│           │   └── index.js            ✅ Express app
+│           │       • Customer data management
+│           │       • 8% random failure rate
+│           │       • OpenTelemetry auto-instrumentation
+│           │
+│           ├── inventory-system/
+│           │   ├── Dockerfile          ✅ Node.js 20
+│           │   ├── package.json        ✅ Dependencies
+│           │   ├── README.md           ✅ Documentation
+│           │   └── index.js            ✅ Express app
+│           │       • Inventory management
+│           │       • Multi-warehouse support
+│           │       • 10% random failure rate
+│           │       • OpenTelemetry auto-instrumentation
+│           │
+│           └── promotions-service/
+│               ├── Dockerfile          ✅ Node.js 20
+│               ├── package.json        ✅ Dependencies
+│               └── index.js            ✅ Express app
+│                   • Third-party promotions
+│                   • 12% random failure rate
+│                   • Country-specific discounts
+│                   • OpenTelemetry auto-instrumentation
+│
+└── Grafana Configuration
+    └── grafana/
+        ├── provisioning/
+        │   ├── datasources/
+        │   │   └── datasources.yml     ✅ Auto-provisioned data sources
+        │   │       • Prometheus
+        │   │       • Tempo (with trace-to-logs)
+        │   │       • Loki (with trace correlation)
+        │   │       • Pyroscope
+        │   │
+        │   └── dashboards/
+        │       └── dashboards.yml      ✅ Dashboard auto-loading
+        │
+        └── dashboards/
+            └── webstore-overview.json  ✅ WebStore dashboard
+                • Cart additions by country
+                • Checkout rates
+                • Payment failure rates
+                • Active carts
+                • Time series graphs
+                • Status tables
+
+
+OBSERVABILITY STACK (Docker Compose Services)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Infrastructure:
+  ✅ postgres          - PostgreSQL 15 database
+  ✅ redis             - Redis 7 cache
+  ✅ otel-collector    - OpenTelemetry Collector (OTLP gRPC/HTTP)
+  ✅ prometheus        - Prometheus metrics storage (port 9090)
+  ✅ tempo             - Grafana Tempo distributed tracing (port 3200)
+  ✅ loki              - Grafana Loki log aggregation (port 3100)
+  ✅ pyroscope         - Grafana Pyroscope profiling (port 4040)
+  ✅ grafana           - Grafana dashboards (port 3000)
+
+Application Services:
+  ✅ main-service      - FastAPI backend (port 8000)
+  ✅ payments-service  - Go microservice (port 8081)
+  ✅ promotions-service - C# microservice (port 8082)
+  ✅ payment-provider  - External Node.js (port 3001)
+  ✅ crm-system        - External Node.js (port 3002)
+  ✅ inventory-system  - External Node.js (port 3003)
+  ✅ frontend          - React SPA (port 3001 - nginx)
+
+
+KEY FEATURES IMPLEMENTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Monitoring & Observability:
+   • Auto-instrumented endpoints (all HTTP routes)
+   • Custom cart addition metrics with country labels
+   • Distributed tracing across all services
+   • Payment monitoring by country
+   • External service call monitoring with duration tracking
+   • Simulated failures (400, 404, 500, 503, 429)
+   • Token-based authentication (hardcoded opaque tokens)
+   • Frontend RUM with Grafana Faro
+   • Continuous profiling with Pyroscope
+
+✅ Technical Stack:
+   • React SPA with Grafana Faro
+   • FastAPI with OpenTelemetry
+   • Go with Gin + OpenTelemetry
+   • C# .NET 8 with OpenTelemetry
+   • Node.js with auto-instrumentation
+   • PostgreSQL database
+   • Redis cache
+   • Prometheus + Tempo + Loki + Pyroscope
+   • Grafana with pre-configured dashboards
+
+✅ Data Flow:
+   Applications → OpenTelemetry Collector → Backends (Prometheus/Tempo/Loki)
+   All telemetry flows through OTLP (gRPC) to the collector
+
+✅ Geographic Simulation:
+   🇺🇸 US    (5% payment failure)
+   🇬🇧 UK    (7% payment failure)
+   🇩🇪 DE    (6% payment failure)
+   🇫🇷 FR    (8% payment failure)
+   🇯🇵 JP    (10% payment failure)
+   🇧🇷 BR    (15% payment failure)
+   🇮🇳 IN    (12% payment failure)
+
+✅ Authentication:
+   • user-token-123
+   • admin-token-456
+   • test-token-789
+
+
+COMMANDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Start Everything:
+  ./start.sh                    # Quick start with health checks
+  make start                    # Alternative using Make
+  docker-compose up -d          # Direct docker-compose
+
+Generate Traffic:
+  cd scripts
+  python3 generate-traffic.py --users 5 --duration 60
+  
+  # Or with Make
+  make traffic                  # 5 users, 60 seconds
+  make traffic-heavy            # 20 users, 120 seconds
+
+View Logs:
+  make logs                     # All services
+  make logs-main               # Main service only
+  docker-compose logs -f        # All services
+
+Stop Everything:
+  make stop                     # Stop services
+  make clean                    # Stop and remove data
+  docker-compose down -v        # Direct command
+
+
+QUICK ACCESS URLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  🌐 Frontend:     http://localhost:3001
+  🔧 Main API:     http://localhost:8000
+  📊 Grafana:      http://localhost:3000
+  📈 Prometheus:   http://localhost:9090
+  🔍 Tempo:        http://localhost:3200
+  📝 Loki:         http://localhost:3100
+  🔥 Pyroscope:    http://localhost:4040
+
+
+FILE STATISTICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total files created:     50+
+Lines of code:           ~5,000+
+Documentation pages:     4 (README, QUICKSTART, ARCHITECTURE, SUMMARY)
+Services:                14 (7 app + 7 infra)
+Languages:               Python, Go, C#, JavaScript, YAML, JSON
+Configuration files:     10+
+Docker images:           14
+Supported countries:     7
+Failure scenarios:       3 external services with variable rates

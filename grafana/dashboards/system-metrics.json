@@ -1,0 +1,732 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "text"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "options": {
+        "content": "## \u26a0\ufe0f macOS Users: Container Metrics Configuration\n\nOn macOS, this dashboard uses **container ID hashes** instead of names due to Docker Desktop limitations. Container IDs change when containers are recreated.\n\n**To update after rebuild:**\n```bash\ndocker ps --format '{{.Names}}: {{.ID}}' | grep monitoring-example\n```\nThen update the container ID filters in this dashboard's queries, or use AI: `\"Update system metrics dashboard container IDs from docker ps\"`",
+        "mode": "markdown"
+      },
+      "title": "macOS Configuration Notice",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "CPU usage percentage per container",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "CPU %",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 3
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{id=~\".*/79058c41.*\",cpu=\"total\"}[5m]) * 100",
+          "legendFormat": "main-service",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{id=~\".*/2d9bf5e2.*\",cpu=\"total\"}[5m]) * 100",
+          "legendFormat": "payments-service",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{id=~\".*/543e01e4.*\",cpu=\"total\"}[5m]) * 100",
+          "legendFormat": "promotions-service",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{id=~\".*/13c0b544.*\",cpu=\"total\"}[5m]) * 100",
+          "legendFormat": "postgres",
+          "refId": "D"
+        },
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{id=~\".*/2ca47e20.*\",cpu=\"total\"}[5m]) * 100",
+          "legendFormat": "redis",
+          "refId": "E"
+        }
+      ],
+      "title": "CPU Usage by Container",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Memory usage in megabytes per container",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Memory",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "decmbytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 3
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "container_memory_usage_bytes{id=~\".*/79058c41.*\"} / 1024 / 1024",
+          "legendFormat": "main-service",
+          "refId": "A"
+        },
+        {
+          "expr": "container_memory_usage_bytes{id=~\".*/2d9bf5e2.*\"} / 1024 / 1024",
+          "legendFormat": "payments-service",
+          "refId": "B"
+        },
+        {
+          "expr": "container_memory_usage_bytes{id=~\".*/543e01e4.*\"} / 1024 / 1024",
+          "legendFormat": "promotions-service",
+          "refId": "C"
+        },
+        {
+          "expr": "container_memory_usage_bytes{id=~\".*/13c0b544.*\"} / 1024 / 1024",
+          "legendFormat": "postgres",
+          "refId": "D"
+        },
+        {
+          "expr": "container_memory_usage_bytes{id=~\".*/2ca47e20.*\"} / 1024 / 1024",
+          "legendFormat": "redis",
+          "refId": "E"
+        }
+      ],
+      "title": "Memory Usage by Container",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Network receive throughput in bytes per second",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Bytes/sec",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "Bps"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_network_receive_bytes_total{id=~\".*/79058c41.*\"}[5m])",
+          "legendFormat": "main-service",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(container_network_receive_bytes_total{id=~\".*/2d9bf5e2.*\"}[5m])",
+          "legendFormat": "payments-service",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(container_network_receive_bytes_total{id=~\".*/543e01e4.*\"}[5m])",
+          "legendFormat": "promotions-service",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(container_network_receive_bytes_total{id=~\".*/13c0b544.*\"}[5m])",
+          "legendFormat": "postgres",
+          "refId": "D"
+        },
+        {
+          "expr": "rate(container_network_receive_bytes_total{id=~\".*/2ca47e20.*\"}[5m])",
+          "legendFormat": "redis",
+          "refId": "E"
+        }
+      ],
+      "title": "Network Receive Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Network transmit throughput in bytes per second",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Bytes/sec",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "Bps"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_network_transmit_bytes_total{id=~\".*/79058c41.*\"}[5m])",
+          "legendFormat": "main-service",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(container_network_transmit_bytes_total{id=~\".*/2d9bf5e2.*\"}[5m])",
+          "legendFormat": "payments-service",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(container_network_transmit_bytes_total{id=~\".*/543e01e4.*\"}[5m])",
+          "legendFormat": "promotions-service",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(container_network_transmit_bytes_total{id=~\".*/13c0b544.*\"}[5m])",
+          "legendFormat": "postgres",
+          "refId": "D"
+        },
+        {
+          "expr": "rate(container_network_transmit_bytes_total{id=~\".*/2ca47e20.*\"}[5m])",
+          "legendFormat": "redis",
+          "refId": "E"
+        }
+      ],
+      "title": "Network Transmit Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Top resource consumers by CPU and memory",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Service"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "pattern": ".*/79058c41.*",
+                      "result": {
+                        "text": "main-service"
+                      }
+                    },
+                    "type": "regex"
+                  },
+                  {
+                    "options": {
+                      "pattern": ".*/2d9bf5e2.*",
+                      "result": {
+                        "text": "payments-service"
+                      }
+                    },
+                    "type": "regex"
+                  },
+                  {
+                    "options": {
+                      "pattern": ".*/543e01e4.*",
+                      "result": {
+                        "text": "promotions-service"
+                      }
+                    },
+                    "type": "regex"
+                  },
+                  {
+                    "options": {
+                      "pattern": ".*/13c0b544.*",
+                      "result": {
+                        "text": "postgres"
+                      }
+                    },
+                    "type": "regex"
+                  },
+                  {
+                    "options": {
+                      "pattern": ".*/2ca47e20.*",
+                      "result": {
+                        "text": "redis"
+                      }
+                    },
+                    "type": "regex"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU %"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 50
+                    },
+                    {
+                      "color": "red",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Memory MB"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decmbytes"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "id": 5,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "CPU %"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{id=~\".*/79058c41.*|.*/2d9bf5e2.*|.*/543e01e4.*|.*/13c0b544.*|.*/2ca47e20.*\",cpu=\"total\"}[5m]) * 100",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "container_memory_usage_bytes{id=~\".*/79058c41.*|.*/2d9bf5e2.*|.*/543e01e4.*|.*/13c0b544.*|.*/2ca47e20.*\"} / 1024 / 1024",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Resource Usage Summary",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "image": true,
+              "instance": true,
+              "job": true
+            },
+            "indexByName": {
+              "id": 0,
+              "Value #A": 1,
+              "Value #B": 2
+            },
+            "renameByName": {
+              "Value #A": "CPU %",
+              "Value #B": "Memory MB",
+              "id": "Service"
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*/79058c41.*",
+            "renamePattern": "main-service"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*/2d9bf5e2.*",
+            "renamePattern": "payments-service"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*/543e01e4.*",
+            "renamePattern": "promotions-service"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*/13c0b544.*",
+            "renamePattern": "postgres"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*/2ca47e20.*",
+            "renamePattern": "redis"
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [
+    "system",
+    "containers",
+    "resources"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "System Metrics",
+  "uid": "system-metrics",
+  "version": 1,
+  "weekStart": ""
+}

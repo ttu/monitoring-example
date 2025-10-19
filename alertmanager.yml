@@ -1,0 +1,155 @@
+global:
+  resolve_timeout: 5m
+
+# Route configuration
+route:
+  # Default receiver
+  receiver: 'default'
+
+  # Group alerts by these labels
+  group_by: ['alertname', 'cluster', 'service']
+
+  # Wait before sending initial notification
+  group_wait: 10s
+
+  # Wait before sending notifications about new alerts in existing group
+  group_interval: 10s
+
+  # Wait before resending notification
+  repeat_interval: 12h
+
+  # Child routes
+  routes:
+    # Critical alerts
+    - match:
+        severity: critical
+      receiver: 'critical'
+      continue: true
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Warning alerts
+    - match:
+        severity: warning
+      receiver: 'warning'
+      continue: true
+      group_wait: 30s
+      repeat_interval: 4h
+
+    # SLO alerts
+    - match:
+        slo: availability
+      receiver: 'slo-violations'
+      continue: true
+      group_wait: 5s
+      repeat_interval: 30m
+
+    - match:
+        slo: latency
+      receiver: 'slo-violations'
+      continue: true
+
+    - match:
+        slo: payment_success
+      receiver: 'slo-violations'
+      continue: true
+
+    # Team-specific routing
+    - match:
+        team: payments
+      receiver: 'team-payments'
+      continue: true
+
+    - match:
+        team: platform
+      receiver: 'team-platform'
+      continue: true
+
+    - match:
+        team: business
+      receiver: 'team-business'
+      continue: true
+
+# Inhibition rules - suppress certain alerts when others are firing
+inhibit_rules:
+  # Suppress warning if critical is firing for same alertname
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service']
+
+  # Suppress high error rate if service is down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: 'High.*Rate'
+    equal: ['service']
+
+# Receivers - where to send notifications
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+
+  - name: 'critical'
+    # In production, configure PagerDuty, Slack, email, etc.
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/critical'
+        send_resolved: true
+    # Uncomment for Slack integration
+    # slack_configs:
+    #   - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    #     channel: '#alerts-critical'
+    #     title: 'CRITICAL: {{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  - name: 'warning'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/warning'
+        send_resolved: true
+    # Uncomment for Slack integration
+    # slack_configs:
+    #   - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    #     channel: '#alerts-warning'
+    #     title: 'Warning: {{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  - name: 'slo-violations'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/slo'
+        send_resolved: true
+    # Uncomment for PagerDuty integration
+    # pagerduty_configs:
+    #   - service_key: 'YOUR_PAGERDUTY_KEY'
+    #     description: 'SLO Violation: {{ .GroupLabels.slo }}'
+
+  - name: 'team-payments'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/team/payments'
+        send_resolved: true
+    # Uncomment for team-specific notifications
+    # slack_configs:
+    #   - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    #     channel: '#team-payments-alerts'
+
+  - name: 'team-platform'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/team/platform'
+        send_resolved: true
+    # slack_configs:
+    #   - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    #     channel: '#team-platform-alerts'
+
+  - name: 'team-business'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/team/business'
+        send_resolved: true
+    # slack_configs:
+    #   - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    #     channel: '#team-business-alerts'
+
+# Templates for custom notification formatting
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

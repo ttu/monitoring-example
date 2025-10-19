@@ -1,0 +1,526 @@
+groups:
+  - name: webstore_alerts
+    interval: 30s
+    rules:
+      # High Error Rate Alerts
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_server_duration_count{http_status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_server_duration_count[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      - alert: HighPaymentFailureRate
+        expr: |
+          (
+            sum(rate(payments_processed_total{status="failed"}[5m]))
+            /
+            sum(rate(payments_processed_total[5m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          team: payments
+        annotations:
+          summary: "High payment failure rate"
+          description: "Payment failure rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+
+      - alert: CriticalPaymentFailureRateByCountry
+        expr: |
+          (
+            sum by (country) (rate(payments_processed_total{status="failed"}[5m]))
+            /
+            sum by (country) (rate(payments_processed_total[5m]))
+          ) > 0.20
+        for: 10m
+        labels:
+          severity: critical
+          team: payments
+        annotations:
+          summary: "Critical payment failure rate in {{ $labels.country }}"
+          description: "Payment failure rate in {{ $labels.country }} is {{ $value | humanizePercentage }} (threshold: 20%)"
+
+      # Latency Alerts
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_duration_bucket[5m])) by (le, service_name)
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High P95 latency on {{ $labels.service_name }}"
+          description: "P95 latency is {{ $value | humanizeDuration }} (threshold: 2s)"
+
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_server_duration_bucket[5m])) by (le, service_name)
+          ) > 5
+        for: 10m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical P99 latency on {{ $labels.service_name }}"
+          description: "P99 latency is {{ $value | humanizeDuration }} (threshold: 5s)"
+
+      - alert: SlowPaymentProcessing
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(payment_duration_seconds_bucket[5m])) by (le, country)
+          ) > 3
+        for: 10m
+        labels:
+          severity: warning
+          team: payments
+        annotations:
+          summary: "Slow payment processing in {{ $labels.country }}"
+          description: "P95 payment duration in {{ $labels.country }} is {{ $value | humanizeDuration }} (threshold: 3s)"
+
+      # Service Availability Alerts
+      - alert: ServiceDown
+        expr: up{job=~"main-service|payments-service|promotions-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been down for more than 2 minutes"
+
+      - alert: HighExternalServiceFailureRate
+        expr: |
+          (
+            sum by (service) (rate(external_call_total{status=~"error|timeout"}[5m]))
+            /
+            sum by (service) (rate(external_call_total[5m]))
+          ) > 0.15
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High failure rate for external service {{ $labels.service }}"
+          description: "External service {{ $labels.service }} failure rate is {{ $value | humanizePercentage }} (threshold: 15%)"
+
+      # Resource Alerts
+      - alert: HighDatabaseConnectionUsage
+        expr: |
+          (
+            sum(db_pool_connections_in_use)
+            /
+            sum(db_pool_connections_max)
+          ) > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High database connection pool usage"
+          description: "Database connection pool usage is {{ $value | humanizePercentage }} (threshold: 80%)"
+
+      - alert: HighRedisMemoryUsage
+        expr: |
+          (
+            redis_memory_used_bytes
+            /
+            redis_memory_max_bytes
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is {{ $value | humanizePercentage }} (threshold: 85%)"
+
+      # Business Metrics Alerts
+      - alert: LowCheckoutConversionRate
+        expr: |
+          (
+            sum(rate(webstore_checkouts_total{status="completed"}[30m]))
+            /
+            sum(rate(webstore_cart_additions_total[30m]))
+          ) < 0.10
+        for: 30m
+        labels:
+          severity: warning
+          team: business
+        annotations:
+          summary: "Low checkout conversion rate"
+          description: "Checkout conversion rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+
+      - alert: NoTrafficDetected
+        expr: |
+          sum(rate(http_server_duration_count[5m])) == 0
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "No traffic detected"
+          description: "No HTTP requests received in the last 10 minutes"
+
+      - alert: AbandonedCartsIncreasing
+        expr: |
+          sum(webstore_active_carts) > 100
+        for: 15m
+        labels:
+          severity: info
+          team: business
+        annotations:
+          summary: "High number of abandoned carts"
+          description: "Active carts count is {{ $value }} (threshold: 100)"
+
+      # Optimistic Inventory Strategy Alerts
+      - alert: HighInventoryReservationFailureRate
+        expr: |
+          (
+            sum(rate(webstore_inventory_reservation_failures_total[5m]))
+            /
+            sum(rate(webstore_checkouts_total{status="completed"}[5m]))
+          ) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          team: fulfillment
+          strategy: optimistic_inventory
+        annotations:
+          summary: "High inventory reservation failure rate"
+          description: "{{ $value | humanizePercentage }} of orders failing reservation (threshold: 1%). Investigate inventory availability."
+          runbook: "Check Optimistic Inventory dashboard for affected products/countries. Consider increasing safety stock."
+
+      - alert: HighDelayedFulfillmentRate
+        expr: |
+          (
+            sum(rate(webstore_orders_delayed_fulfillment_total[5m]))
+            /
+            sum(rate(webstore_checkouts_total{status="completed"}[5m]))
+          ) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          team: fulfillment
+          strategy: optimistic_inventory
+        annotations:
+          summary: "High delayed fulfillment rate"
+          description: "{{ $value | humanizePercentage }} of orders require alternative fulfillment (threshold: 1%). Customer experience may be impacted."
+          runbook: "Review fulfillment alternatives. Contact alternative warehouses or suppliers."
+
+      - alert: CriticalOutOfStockCancellations
+        expr: |
+          (
+            sum(rate(webstore_orders_cancelled_out_of_stock_total[5m]))
+            /
+            sum(rate(webstore_checkouts_total{status="completed"}[5m]))
+          ) > 0.001
+        for: 5m
+        labels:
+          severity: critical
+          team: fulfillment
+          strategy: optimistic_inventory
+        annotations:
+          summary: "CRITICAL: Out-of-stock cancellation rate exceeded"
+          description: "{{ $value | humanizePercentage }} of orders cancelled due to out-of-stock (threshold: 0.1%). Optimistic inventory strategy failing!"
+          runbook: "URGENT: Review optimistic inventory strategy. Consider switching to pessimistic inventory validation at checkout."
+
+      - alert: InventoryReservationFailuresByProduct
+        expr: |
+          sum by (product_id) (
+            increase(webstore_inventory_reservation_failures_total[1h])
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: fulfillment
+          strategy: optimistic_inventory
+        annotations:
+          summary: "High reservation failures for product {{ $labels.product_id }}"
+          description: "Product {{ $labels.product_id }} has {{ $value }} reservation failures in last hour (threshold: 10)"
+          runbook: "Check product {{ $labels.product_id }} inventory levels across all warehouses. Increase safety stock or mark as low-stock."
+
+      - alert: InventoryReservationFailuresByCountry
+        expr: |
+          (
+            sum by (country) (rate(webstore_inventory_reservation_failures_total[5m]))
+            /
+            sum by (country) (rate(webstore_checkouts_total{status="completed"}[5m]))
+          ) > 0.02
+        for: 10m
+        labels:
+          severity: warning
+          team: fulfillment
+          strategy: optimistic_inventory
+        annotations:
+          summary: "High reservation failures in {{ $labels.country }}"
+          description: "{{ $labels.country }} has {{ $value | humanizePercentage }} reservation failure rate (threshold: 2%)"
+          runbook: "Check warehouse availability in {{ $labels.country }}. Consider regional inventory rebalancing."
+
+      # Security Alerts
+      - alert: HighAuthenticationFailureRate
+        expr: |
+          (
+            sum(rate(webstore_auth_failures_total[5m]))
+            /
+            sum(rate(webstore_auth_attempts_total[5m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+          category: authentication
+        annotations:
+          summary: "High authentication failure rate"
+          description: "{{ $value | humanizePercentage }} of authentication attempts are failing (threshold: 10%)"
+          runbook: "Check Security Monitoring dashboard. Investigate for potential credential stuffing attack."
+
+      - alert: CriticalAuthenticationFailureRate
+        expr: |
+          (
+            sum(rate(webstore_auth_failures_total[5m]))
+            /
+            sum(rate(webstore_auth_attempts_total[5m]))
+          ) > 0.25
+        for: 3m
+        labels:
+          severity: critical
+          team: security
+          category: authentication
+        annotations:
+          summary: "CRITICAL: Very high authentication failure rate"
+          description: "{{ $value | humanizePercentage }} of authentication attempts are failing (threshold: 25%). Possible attack in progress!"
+          runbook: "URGENT: Review Security Monitoring dashboard. Consider blocking suspicious IPs. Check for credential stuffing or brute force attack."
+
+      - alert: RateLimitViolations
+        expr: |
+          sum(rate(webstore_rate_limit_exceeded_total[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+          category: rate_limiting
+        annotations:
+          summary: "Rate limit violations detected"
+          description: "{{ $value | humanize }} rate limit violations per second"
+          runbook: "Check Security Monitoring dashboard for affected IPs and endpoints. Consider adjusting rate limits or blocking abusive IPs."
+
+      - alert: SuspiciousActivityDetected
+        expr: |
+          sum(increase(webstore_security_suspicious_activity_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: security
+          category: suspicious_activity
+        annotations:
+          summary: "Suspicious activity detected"
+          description: "{{ $value }} suspicious activity events in last 5 minutes. Types: {{$labels.type}}"
+          runbook: "Review Security Monitoring dashboard. Check logs for details. Verify if attack pattern (credential stuffing, endpoint scanning, abuse)."
+
+      - alert: CredentialStuffingAttack
+        expr: |
+          sum by (client_ip) (
+            increase(webstore_security_suspicious_activity_total{type="credential_stuffing"}[5m])
+          ) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+          category: attack
+        annotations:
+          summary: "Possible credential stuffing attack from {{ $labels.client_ip }}"
+          description: "Multiple failed authentication attempts detected from {{ $labels.client_ip }}"
+          runbook: "URGENT: Block IP {{ $labels.client_ip }} at firewall/CDN level. Review auth logs for affected accounts. Consider forcing password resets."
+
+      - alert: EndpointScanningDetected
+        expr: |
+          sum by (client_ip) (
+            increase(webstore_security_suspicious_activity_total{type="endpoint_scanning"}[5m])
+          ) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: security
+          category: reconnaissance
+        annotations:
+          summary: "Endpoint scanning detected from {{ $labels.client_ip }}"
+          description: "{{ $labels.client_ip }} is probing for non-existent endpoints (reconnaissance)"
+          runbook: "Monitor {{ $labels.client_ip }} closely. Consider blocking if scanning continues. Review WAF logs."
+
+      - alert: HighRateLimitViolationsByIP
+        expr: |
+          sum by (client_ip) (
+            increase(webstore_rate_limit_exceeded_total[5m])
+          ) > 10
+        for: 3m
+        labels:
+          severity: warning
+          team: security
+          category: abuse
+        annotations:
+          summary: "High rate limit violations from {{ $labels.client_ip }}"
+          description: "{{ $labels.client_ip }} exceeded rate limits {{ $value }} times in 5 minutes"
+          runbook: "Review request patterns from {{ $labels.client_ip }}. Consider blocking if malicious. May be misconfigured client or bot."
+
+      - alert: MultipleFailedAuthFromSingleIP
+        expr: |
+          sum by (client_ip, reason) (
+            increase(webstore_auth_failures_total[10m])
+          ) > 20
+        for: 2m
+        labels:
+          severity: warning
+          team: security
+          category: brute_force
+        annotations:
+          summary: "Multiple failed auth attempts from {{ $labels.client_ip }}"
+          description: "{{ $value }} failed auth attempts from {{ $labels.client_ip }} (reason: {{$labels.reason}})"
+          runbook: "Investigate {{ $labels.client_ip }}. If malicious, add to blocklist. Check if legitimate user having issues."
+
+      # OpenTelemetry Collector Alerts
+      - alert: OTELCollectorHighDropRate
+        expr: |
+          (
+            sum(rate(otelcol_processor_dropped_spans[5m]))
+            /
+            sum(rate(otelcol_processor_accepted_spans[5m]))
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: critical
+          team: observability
+        annotations:
+          summary: "OTEL Collector dropping spans"
+          description: "OTEL Collector span drop rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      - alert: OTELCollectorHighMemory
+        expr: |
+          process_runtime_memory_physical_usage_bytes{service_name="otel-collector"}
+          > 500000000
+        for: 5m
+        labels:
+          severity: warning
+          team: observability
+        annotations:
+          summary: "OTEL Collector high memory usage"
+          description: "OTEL Collector memory usage is {{ $value | humanize1024 }} (threshold: 500MB)"
+
+  - name: slo_alerts
+    interval: 1m
+    rules:
+      # SLO: 99.9% availability
+      - alert: AvailabilitySLOBreach
+        expr: |
+          (
+            sum(rate(http_server_duration_count{http_status_code!~"5.."}[30m]))
+            /
+            sum(rate(http_server_duration_count[30m]))
+          ) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          slo: availability
+        annotations:
+          summary: "Availability SLO breach"
+          description: "Current availability is {{ $value | humanizePercentage }}, SLO is 99.9%"
+          runbook: "Check service health and error rates"
+
+      # SLO: 95% of requests complete in < 1s
+      - alert: LatencySLOBreach
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_duration_bucket[5m])) by (le)
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          slo: latency
+        annotations:
+          summary: "Latency SLO breach"
+          description: "P95 latency is {{ $value | humanizeDuration }}, SLO is 1s"
+          runbook: "Investigate slow endpoints and database queries"
+
+      # SLO: Payment success rate > 90%
+      - alert: PaymentSLOBreach
+        expr: |
+          (
+            sum(rate(payments_processed_total{status="success"}[1h]))
+            /
+            sum(rate(payments_processed_total[1h]))
+          ) < 0.90
+        for: 15m
+        labels:
+          severity: critical
+          team: payments
+          slo: payment_success
+        annotations:
+          summary: "Payment success rate SLO breach"
+          description: "Payment success rate is {{ $value | humanizePercentage }}, SLO is 90%"
+          runbook: "Check payment provider status and country-specific issues"
+
+  - name: log_based_alerts
+    interval: 30s
+    rules:
+      # Note: These are placeholder queries. Actual log-based alerts are configured in Loki
+      # Prometheus can query Loki metrics if Loki metrics are exposed via remote write
+
+      # Application errors detected in logs
+      - alert: FrequentApplicationErrors
+        expr: |
+          sum by (service_name) (
+            rate(http_server_duration_count{http_status_code=~"5.."}[5m])
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          type: log_based
+        annotations:
+          summary: "Frequent application errors in {{ $labels.service_name }}"
+          description: "{{ $labels.service_name }} is experiencing {{ $value | humanize }} server errors per second"
+          runbook: "Check application logs for error details: docker-compose logs {{ $labels.service_name }}"
+
+      # Database connection errors (inferred from error patterns)
+      - alert: DatabaseConnectionIssues
+        expr: |
+          (
+            sum(rate(http_server_duration_count{http_status_code="503"}[5m]))
+          ) > 0.1
+        for: 3m
+        labels:
+          severity: critical
+          team: platform
+          type: log_based
+        annotations:
+          summary: "Potential database connection issues"
+          description: "Elevated 503 errors may indicate database connectivity problems: {{ $value | humanize }}/s"
+          runbook: "Check database logs and connection pool metrics"
+
+      # External service integration failures
+      - alert: ExternalServiceIntegrationErrors
+        expr: |
+          (
+            sum by (service) (rate(external_call_total{status="error"}[5m]))
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: integrations
+          type: log_based
+        annotations:
+          summary: "External service {{ $labels.service }} integration errors"
+          description: "{{ $labels.service }} errors: {{ $value | humanize }}/s"
+          runbook: "Review external service logs and check service status"

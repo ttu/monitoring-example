@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'webstore-demo'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# Load alert rules
+rule_files:
+  - 'prometheus-alerts.yml'
+
+scrape_configs:
+  # OpenTelemetry Collector - all application metrics flow through here
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8888', 'otel-collector:8889']
+
+  # Infrastructure monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Note: Application services (main-service, payments-service, promotions-service)
+  # push metrics via OTLP to the OTEL Collector (port 4317)
+  # The OTEL Collector then exports to Prometheus (port 8889)
+  # External systems (payment-provider, crm-system, inventory-system) don't expose
+  # metrics as they simulate third-party services

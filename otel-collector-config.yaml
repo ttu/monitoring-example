@@ -1,0 +1,227 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "http://localhost:3001"
+            - "http://localhost:3000"
+            - "http://*"
+          allowed_headers:
+            - "*"
+
+  # Prometheus receiver to scrape cAdvisor for container metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'cadvisor'
+          scrape_interval: 15s
+          static_configs:
+            - targets: ['cadvisor:8080']
+
+processors:
+  batch:
+    timeout: 10s
+    send_batch_size: 1024
+
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+
+  # Add resource attributes
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: demo
+        action: upsert
+
+  # Extract resource attributes to log record attributes for Loki labels
+  resource/logs:
+    attributes:
+      - key: loki.resource.labels
+        value: service.name, deployment.environment
+        action: upsert
+
+  # Enhanced tail sampling for traces with value-based sampling
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100
+    expected_new_traces_per_sec: 100
+    policies:
+      # Always sample errors - highest priority
+      - name: errors-always
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+
+      # Always sample very slow requests (> 5s)
+      - name: very-slow-always
+        type: latency
+        latency:
+          threshold_ms: 5000
+
+      # Sample slow requests (> 1s) at 100%
+      - name: slow-requests
+        type: latency
+        latency:
+          threshold_ms: 1000
+
+      # High-value endpoints: Always sample checkout and payment flows
+      - name: critical-endpoints
+        type: string_attribute
+        string_attribute:
+          key: http.target
+          values:
+            - /api/orders
+            - /api/payments/process
+            - /cart/checkout
+          enabled_regex_matching: true
+          invert_match: false
+
+      # Sample by user type: Always sample admin/test users
+      - name: admin-users
+        type: string_attribute
+        string_attribute:
+          key: user.id
+          values:
+            - admin-.*
+            - test-.*
+          enabled_regex_matching: true
+          invert_match: false
+
+      # Sample high-value transactions (amount > $1000)
+      - name: high-value-transactions
+        type: numeric_attribute
+        numeric_attribute:
+          key: transaction.amount
+          min_value: 1000
+          max_value: 999999999
+
+      # Sample by country: Always sample from high-risk countries
+      - name: high-risk-countries
+        type: string_attribute
+        string_attribute:
+          key: payment.country
+          values:
+            - BR  # Brazil - high payment failure rate
+            - IN  # India - high transaction volume
+            - MX  # Mexico - compliance requirements
+          enabled_regex_matching: false
+          invert_match: false
+
+      # Sample external service calls (for debugging integrations)
+      - name: external-services
+        type: string_attribute
+        string_attribute:
+          key: service.name
+          values:
+            - payment-provider-external
+            - crm-system-external
+            - inventory-system-external
+          enabled_regex_matching: false
+          invert_match: false
+
+      # Sample 50% of medium latency requests (500ms - 1s)
+      - name: medium-latency
+        type: and
+        and:
+          and_sub_policy:
+            - name: latency-check
+              type: latency
+              latency:
+                threshold_ms: 500
+            - name: probabilistic-half
+              type: probabilistic
+              probabilistic:
+                sampling_percentage: 50
+
+      # Sample failed payment attempts at higher rate
+      - name: failed-payments
+        type: string_attribute
+        string_attribute:
+          key: payment.status
+          values:
+            - failed
+            - error
+            - declined
+          enabled_regex_matching: false
+          invert_match: false
+
+      # Composite rule: Sample slow database queries
+      - name: slow-db-queries
+        type: and
+        and:
+          and_sub_policy:
+            - name: db-operation
+              type: string_attribute
+              string_attribute:
+                key: db.system
+                values:
+                  - postgresql
+                  - redis
+                enabled_regex_matching: false
+                invert_match: false
+            - name: slow-query
+              type: latency
+              latency:
+                threshold_ms: 500
+
+      # Default: Sample 10% of remaining traces
+      - name: default-probabilistic
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+
+exporters:
+  # Prometheus for metrics
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    const_labels:
+      environment: demo
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Tempo for traces
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Loki for logs
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+
+  # Logging for debugging
+  logging:
+    loglevel: info
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch, tail_sampling]
+      exporters: [otlp/tempo, logging]
+
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheus]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, resource/logs, batch]
+      exporters: [loki, logging]

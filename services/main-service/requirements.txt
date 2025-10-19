@@ -1,0 +1,27 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+redis==5.0.1
+pydantic==2.5.0
+pydantic-settings==2.1.0
+httpx==0.25.1
+python-json-logger==2.0.7
+
+# OpenTelemetry - Updated to 1.29.0 for exemplar support
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-instrumentation-sqlalchemy==0.50b0
+opentelemetry-instrumentation-redis==0.50b0
+opentelemetry-instrumentation-httpx==0.50b0
+opentelemetry-exporter-otlp-proto-grpc==1.29.0
+opentelemetry-exporter-otlp-proto-http==1.29.0
+opentelemetry-exporter-prometheus==0.50b0
+opentelemetry-sdk-extension-aws==2.0.2
+
+# Pyroscope
+pyroscope-io==0.8.7
+
+# Prometheus client
+prometheus-client==0.19.0

@@ -1,0 +1,271 @@
+version: '3.9'
+
+services:
+  # Infrastructure Services
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: webstore
+      POSTGRES_USER: webstore
+      POSTGRES_PASSWORD: webstore123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webstore"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-remote-write-receiver'
+      - '--enable-feature=exemplar-storage'
+      - '--enable-feature=native-histograms'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus-alerts.yml:/etc/prometheus/prometheus-alerts.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+
+  # Alertmanager
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    ports:
+      - "9093:9093"
+
+  # Grafana Tempo (Tracing)
+  tempo:
+    image: grafana/tempo:2.3.1
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+      - tempo_data:/tmp/tempo
+    ports:
+      - "3200:3200"   # tempo
+      - "4317"        # otlp grpc
+
+  # Grafana Loki (Logs)
+  loki:
+    image: grafana/loki:2.9.3
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki.yaml:/etc/loki/local-config.yaml
+      - ./loki-rules.yaml:/loki/rules/fake/loki-rules.yaml
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+
+  # Grafana Pyroscope (Profiling)
+  pyroscope:
+    image: grafana/pyroscope:1.1.5
+    ports:
+      - "4040:4040"
+    environment:
+      - PYROSCOPE_LOG_LEVEL=debug
+    volumes:
+      - pyroscope_data:/var/lib/pyroscope
+
+  # cAdvisor (Container Metrics)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    restart: unless-stopped
+    command:
+      - '--housekeeping_interval=10s'
+      - '--docker_only=false'
+      - '--store_container_labels=true'
+      - '--whitelisted_container_labels=com.docker.compose.service,com.docker.compose.project'
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:10.2.2
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+      - pyroscope
+
+  # Application Services
+
+  # Main Service (FastAPI + Python)
+  main-service:
+    build:
+      context: ./services/main-service
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://webstore:webstore123@postgres:5432/webstore
+      - REDIS_URL=redis://redis:6379
+      - OTEL_SERVICE_NAME=main-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - PAYMENTS_SERVICE_URL=http://payments-service:8081
+      - PROMOTIONS_SERVICE_URL=http://promotions-service:8082
+      - PAYMENT_PROVIDER_URL=http://payment-provider:3001
+      - CRM_SYSTEM_URL=http://crm-system:3002
+      - INVENTORY_SYSTEM_URL=http://inventory-system:3003
+      - PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  # Payments Service (Go)
+  payments-service:
+    build:
+      context: ./services/payments-service
+      dockerfile: Dockerfile
+    environment:
+      - OTEL_SERVICE_NAME=payments-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - PAYMENT_PROVIDER_URL=http://payment-provider:3001
+    ports:
+      - "8081:8081"
+    depends_on:
+      - otel-collector
+
+  # Promotions Service (C#)
+  promotions-service:
+    build:
+      context: ./services/promotions-service
+      dockerfile: Dockerfile
+    environment:
+      - OTEL_SERVICE_NAME=promotions-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - EXTERNAL_PROMOTIONS_URL=http://external-promotions:3003
+      - ASPNETCORE_URLS=http://+:8082
+    ports:
+      - "8082:8082"
+    depends_on:
+      - otel-collector
+
+  # External Services (Node.js)
+
+  # Payment Provider (External)
+  payment-provider:
+    build:
+      context: ./services/external/payment-provider
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3001
+      - OTEL_SERVICE_NAME=payment-provider-external
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    # Port 3001 exposed internally only (accessed by payments-service)
+    depends_on:
+      - otel-collector
+
+  # CRM System (External 3rd Party)
+  crm-system:
+    build:
+      context: ./services/external/crm-system
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3002
+      - OTEL_SERVICE_NAME=crm-system-external
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    ports:
+      - "3002:3002"
+    depends_on:
+      - otel-collector
+
+  # Inventory System (External 3rd Party)
+  inventory-system:
+    build:
+      context: ./services/external/inventory-system
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3003
+      - OTEL_SERVICE_NAME=inventory-system-external
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    ports:
+      - "3003:3003"
+    depends_on:
+      - otel-collector
+
+  # Frontend (React)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_GRAFANA_FARO_URL=http://localhost:3000/faro
+    ports:
+      - "3001:80"
+    depends_on:
+      - main-service
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  alertmanager_data:
+  tempo_data:
+  loki_data:
+  pyroscope_data:
+  grafana_data:

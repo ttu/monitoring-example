@@ -1,0 +1,62 @@
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnp
+.pnp.js
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Data
+postgres_data/
+prometheus_data/
+tempo_data/
+loki_data/
+pyroscope_data/
+grafana_data/
+
+# Build
+build/
+dist/
+*.egg-info/

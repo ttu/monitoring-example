@@ -1,0 +1,245 @@
+{
+  "folders": [
+    {
+      "name": "🏠 Root",
+      "path": "."
+    },
+    {
+      "name": "🐍 Main Service (Python)",
+      "path": "services/main-service"
+    },
+    {
+      "name": "🔷 Payments Service (Go)",
+      "path": "services/payments-service"
+    },
+    {
+      "name": "🟪 Promotions Service (C#)",
+      "path": "services/promotions-service"
+    },
+    {
+      "name": "🟢 Payment Provider (Node.js)",
+      "path": "services/external/payment-provider"
+    },
+    {
+      "name": "🟢 CRM System (Node.js)",
+      "path": "services/external/crm-system"
+    },
+    {
+      "name": "🟢 Inventory System (Node.js)",
+      "path": "services/external/inventory-system"
+    },
+    {
+      "name": "⚛️ Frontend (React)",
+      "path": "frontend"
+    }
+  ],
+  "settings": {
+    // Python settings
+    "python.defaultInterpreterPath": "${env:HOME}/.asdf/installs/python/3.12.1/bin/python",
+    "python.analysis.extraPaths": [
+      "${workspaceFolder:🐍 Main Service (Python)}"
+    ],
+    "python.analysis.typeCheckingMode": "basic",
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.formatting.provider": "black",
+
+    // Go settings
+    "go.toolsManagement.autoUpdate": true,
+    "go.useLanguageServer": true,
+    "go.lintTool": "golangci-lint",
+    "go.lintOnSave": "package",
+
+    // JavaScript/TypeScript settings
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "eslint.workingDirectories": [
+      {"directory": "frontend", "changeProcessCWD": true},
+      {"directory": "services/external/payment-provider", "changeProcessCWD": true},
+      {"directory": "services/external/crm-system", "changeProcessCWD": true},
+      {"directory": "services/external/inventory-system", "changeProcessCWD": true}
+    ],
+
+    // C# settings
+    "omnisharp.enableRoslynAnalyzers": true,
+    "omnisharp.enableEditorConfigSupport": true,
+    "omnisharp.useModernNet": true,
+
+    // File associations
+    "files.associations": {
+      "docker-compose.yml": "yaml",
+      "*.yaml": "yaml",
+      "Dockerfile*": "dockerfile",
+      "Makefile": "makefile"
+    },
+
+    // Editor settings
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+
+    // Exclude build artifacts from search
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/.pytest_cache": true,
+      "**/__pycache__": true,
+      "**/bin": true,
+      "**/obj": true,
+      "**/.venv": true
+    },
+
+    // File watcher exclusions (for performance)
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/.git/objects/**": true,
+      "**/dist/**": true,
+      "**/build/**": true,
+      "**/__pycache__/**": true,
+      "**/bin/**": true,
+      "**/obj/**": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      // Python
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+
+      // Go
+      "golang.go",
+
+      // C#
+      "ms-dotnettools.csharp",
+
+      // JavaScript/TypeScript/React
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+
+      // Docker
+      "ms-azuretools.vscode-docker",
+
+      // YAML
+      "redhat.vscode-yaml",
+
+      // General
+      "eamodio.gitlens",
+      "streetsidesoftware.code-spell-checker"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "🐍 Debug Main Service",
+        "type": "python",
+        "request": "launch",
+        "module": "uvicorn",
+        "args": [
+          "main:app",
+          "--reload",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8000"
+        ],
+        "cwd": "${workspaceFolder:🐍 Main Service (Python)}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder:🐍 Main Service (Python)}",
+          "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/webstore",
+          "REDIS_URL": "redis://localhost:6379"
+        },
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "🔷 Debug Payments Service",
+        "type": "go",
+        "request": "launch",
+        "mode": "debug",
+        "program": "${workspaceFolder:🔷 Payments Service (Go)}/main.go",
+        "cwd": "${workspaceFolder:🔷 Payments Service (Go)}",
+        "env": {
+          "PORT": "8081",
+          "OTEL_EXPORTER_OTLP_ENDPOINT": "localhost:4317"
+        }
+      },
+      {
+        "name": "🟢 Debug Payment Provider",
+        "type": "node",
+        "request": "launch",
+        "name": "Launch Program",
+        "skipFiles": ["<node_internals>/**"],
+        "program": "${workspaceFolder:🟢 Payment Provider (Node.js)}/index.js",
+        "cwd": "${workspaceFolder:🟢 Payment Provider (Node.js)}",
+        "env": {
+          "PORT": "3001",
+          "OTEL_EXPORTER_OTLP_ENDPOINT": "localhost:4317"
+        }
+      },
+      {
+        "name": "⚛️ Debug Frontend",
+        "type": "chrome",
+        "request": "launch",
+        "url": "http://localhost:3001",
+        "webRoot": "${workspaceFolder:⚛️ Frontend (React)}/src",
+        "sourceMaps": true
+      }
+    ],
+    "compounds": [
+      {
+        "name": "🚀 Debug All Services",
+        "configurations": [
+          "🐍 Debug Main Service",
+          "🔷 Debug Payments Service",
+          "🟢 Debug Payment Provider"
+        ],
+        "presentation": {
+          "hidden": false,
+          "group": "all",
+          "order": 1
+        }
+      }
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Install All Dependencies",
+        "type": "shell",
+        "command": "make install",
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        }
+      },
+      {
+        "label": "Start Docker Services",
+        "type": "shell",
+        "command": "make start",
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        }
+      },
+      {
+        "label": "Stop Docker Services",
+        "type": "shell",
+        "command": "make stop",
+        "problemMatcher": []
+      },
+      {
+        "label": "Generate Traffic",
+        "type": "shell",
+        "command": "make traffic",
+        "problemMatcher": []
+      }
+    ]
+  }
+}
